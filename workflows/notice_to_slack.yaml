@@ -1,0 +1,61 @@
+name: Notice Github Events to Slack
+
+on:
+  issues:
+    types:
+      - opened
+      - reopened
+      - closed
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - closed
+
+run-name: 通知 --> ${{ github.event_name }}
+
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setting Variables
+        id: setting-variables
+        run: |
+          if [ "${{ github.event_name }}" = "issues" ]; then
+            echo "USER_NAME=${{ github.event.issue.user.login }}" >> $GITHUB_OUTPUT
+            echo "STATE=${{ github.event.issue.state }}" >> $GITHUB_OUTPUT
+            echo "NUMBER=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+            echo "TITLE=${{ github.event.issue.title }}" >> $GITHUB_OUTPUT
+            echo "HTML_URL=${{ github.event.issue.html_url }}" >> $GITHUB_OUTPUT
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "USER_NAME=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
+            echo "STATE=${{ github.event.pull_request.state }}" >> $GITHUB_OUTPUT
+            echo "NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "TITLE=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
+            echo "HTML_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Notice to Slack
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "${{ steps.setting-variables.outputs.USER_NAME }} さんが ${{ github.event_name }} を `${{ steps.setting-variables.outputs.STATE }}` しました。",
+              attachments: [
+                {
+                  color: 'good',
+                  title: '#${{ steps.setting-variables.outputs.NUMBER }} ${{ steps.setting-variables.outputs.TITLE }}',
+                  actions: [
+                    {
+                      type: 'button',
+                      text: '確認する',
+                      url: '${{ steps.setting-variables.outputs.HTML_URL }}'
+                    }
+                  ]
+                }
+              ]
+            }
